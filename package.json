@@ -1,0 +1,29 @@
+{
+  "name": "kimmysystem",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": { "node": ">=22 <25" },
+  "scripts": {
+    "postinstall": "pnpm db:generate",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:integration": "pnpm --filter @kimmy/api test:integration",
+    "test:e2e": "playwright test",
+    "db:generate": "pnpm --filter @kimmy/api db:generate",
+    "db:migrate": "pnpm --filter @kimmy/api db:migrate",
+    "db:deploy": "pnpm --filter @kimmy/api db:deploy",
+    "db:seed": "pnpm --filter @kimmy/api db:seed",
+    "infra:up": "docker compose -f infra/compose/docker-compose.dev.yml up -d --wait",
+    "infra:down": "docker compose -f infra/compose/docker-compose.dev.yml down",
+    "setup:env": "node scripts/setup-env.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.19.0",
+    "turbo": "^2.8.0",
+    "typescript": "~5.9.3"
+  }
+}

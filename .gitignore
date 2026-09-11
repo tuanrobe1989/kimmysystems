@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.next/
+dist/
+.turbo/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+.local/
+*.log
