@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      NEXT_TELEMETRY_DISABLED: 1
+      TURBO_TELEMETRY_DISABLED: 1
+      DATABASE_URL: postgresql://kimmy:dev@localhost:5432/kimmysystem
+      TEST_DATABASE_URL: postgresql://kimmy:dev@localhost:5432/kimmysystem_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:env
+      - name: Start and verify all four infrastructure services
+        run: |
+          pnpm infra:up
+          docker compose -f infra/compose/docker-compose.dev.yml ps
+          curl --fail http://localhost:9000/minio/health/live
+          curl --fail http://localhost:9001/
+          curl --fail http://localhost:8025/readyz
+          docker compose -f infra/compose/docker-compose.dev.yml exec -T redis redis-cli ping
+      - name: Apply migrations and verify repeatable seed
+        run: |
+          pnpm db:deploy
+          pnpm db:seed
+          pnpm db:seed
+          docker compose -f infra/compose/docker-compose.dev.yml exec -T postgres createdb -U kimmy kimmysystem_test
+          DATABASE_URL="$TEST_DATABASE_URL" pnpm db:deploy
+      - run: pnpm turbo lint typecheck test build
+      - run: pnpm exec tsc --noEmit -p tsconfig.e2e.json
+      - run: pnpm test:integration
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Upload browser test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+      - name: Infrastructure logs
+        if: failure()
+        run: docker compose -f infra/compose/docker-compose.dev.yml logs --tail=100
+      - name: Stop test infrastructure
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.dev.yml down -v
