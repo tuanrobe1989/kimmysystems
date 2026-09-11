@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env", "**/.env.*"],
+  "globalEnv": ["DATABASE_URL", "API_URL", "PORT", "REDIS_URL", "S3_ENDPOINT", "S3_KEY", "S3_SECRET", "SMTP_URL"],
+  "tasks": {
+    "dev": { "cache": false, "persistent": true },
+    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**", "dist/**"] },
+    "lint": { "dependsOn": ["^lint"] },
+    "typecheck": { "dependsOn": ["^typecheck"] },
+    "test": { "dependsOn": ["^build"], "outputs": [] }
+  }
+}
