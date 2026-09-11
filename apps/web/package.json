@@ -28,6 +28,6 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "@next/eslint-plugin-next": "15.5.25",
     "typescript": "~5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.0"
   }
 }
