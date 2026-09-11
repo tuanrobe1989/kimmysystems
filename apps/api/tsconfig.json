@@ -1,0 +1,13 @@
+{
+  "extends": "@kimmy/config/tsconfig",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "incremental": false
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts", "vitest*.ts"]
+}

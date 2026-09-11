@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Site {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  domains       SiteDomain[]
+  defaultLocale String
+  locales       String[]
+  settings      Json         @default("{}")
+  pages         Page[]
+}
+
+model SiteDomain {
+  id        String  @id @default(cuid())
+  domain    String  @unique
+  siteId    String
+  site      Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  isPrimary Boolean @default(false)
+  @@index([siteId])
+}
+
+model Page {
+  id           String            @id @default(cuid())
+  siteId       String
+  key          String
+  site         Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  status       PageStatus        @default(DRAFT)
+  publishedAt  DateTime?
+  translations PageTranslation[]
+  @@unique([id, siteId])
+  @@unique([siteId, key])
+  @@index([siteId, status])
+}
+
+model PageTranslation {
+  pageId         String
+  siteId         String
+  locale         String
+  title          String
+  slug           String
+  seoTitle       String?
+  seoDescription String?
+  content        Json   @default("[]")
+  page           Page   @relation(fields: [pageId, siteId], references: [id, siteId], onDelete: Cascade)
+  @@id([pageId, locale])
+  @@unique([siteId, locale, slug])
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
