@@ -58,3 +58,29 @@ enum PageStatus {
   DRAFT
   PUBLISHED
 }
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+// One row per issued refresh token. familyId groups a rotation chain so T1.2
+// can revoke the whole chain when a rotated-out token is replayed.
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId         String    @default(cuid())
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+}
