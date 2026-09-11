@@ -11,11 +11,22 @@ export function parseHost(authority: string | null): string | null {
 
 export function routeLocale(pathname: string, site: Pick<Site, 'locales' | 'defaultLocale'>) {
   const segment = pathname.split('/')[1];
+  if (segment === site.defaultLocale) {
+    return { kind: 'redirect' as const, pathname: pathname.slice(segment.length + 1) || '/' };
+  }
   if (site.locales.some((locale) => locale === segment)) return { kind: 'render' as const, locale: segment };
   if (/^[a-z]{2}(?:-[a-z]{2})?$/i.test(segment)) return { kind: 'not-found' as const };
-  return { kind: 'redirect' as const, pathname: `/${site.defaultLocale}${pathname === '/' ? '' : pathname}` };
+  return { kind: 'rewrite' as const, locale: site.defaultLocale, pathname: `/${site.defaultLocale}${pathname === '/' ? '' : pathname}` };
 }
 
-export function pagePath(locale: string, slug: string) {
-  return `/${locale}${slug === 'home' ? '' : `/${slug}`}`;
+export function pagePath(locale: string, slug: string, defaultLocale: string) {
+  const prefix = locale === defaultLocale ? '' : `/${locale}`;
+  return `${prefix}${slug === 'home' ? '' : `/${slug}`}` || '/';
+}
+
+export function languagePaths(translations: { locale: string; slug: string }[], defaultLocale: string) {
+  const paths = Object.fromEntries(translations.map((item) => [item.locale, pagePath(item.locale, item.slug, defaultLocale)]));
+  // A missing default translation must not produce a link to an unavailable page.
+  if (paths[defaultLocale]) paths['x-default'] = paths[defaultLocale];
+  return paths;
 }

@@ -21,7 +21,7 @@ Nếu shell đang ưu tiên một bản pnpm khác, thay `pnpm` bằng `npx --ye
 
 | Địa chỉ mặc định | Nội dung |
 | --- | --- |
-| http://kimmyphungmakeup.localhost:3000 | Redirect `/vi`, Home và Giới thiệu vi/en |
+| http://kimmyphungmakeup.localhost:3000 | Bản vi tại `/`, bản en tại `/en`; Home và Giới thiệu |
 | http://demo.localhost:3000 | Site Demo, Home vi riêng |
 | http://localhost:3000 | Alias local của Kimmy |
 | http://khac.localhost:3000 | Website chưa đăng ký, HTTP 404 |
@@ -89,9 +89,10 @@ CI job `verify` kiểm tra cả 4 Docker service, migration, seed lặp, lint/ty
 
 - `PageTranslation` unique theo `(siteId, locale, slug)`; composite foreign key `(pageId, siteId)` ngăn gắn bản dịch vào page thuộc site khác. `Page.key` giúp seed idempotent ngay cả khi slug dịch khác nhau.
 - Chỉ trả page `PUBLISHED` có `publishedAt <= now`. Thiếu trang/bản dịch trả 404, input sai trả 400. API Phase 0 giữ response trực tiếp theo tài liệu; auth và chuẩn hóa Problem Details thuộc phase sau.
-- `translations: [{ locale, slug }]` bổ sung cho `availableLocales` để `/vi/gioi-thieu` và `/en/about` liên kết đúng. Demo bật vi/en ở site nhưng chỉ có Home vi; `/en` trả 404 và không có hreflang en giả.
+- `translations: [{ locale, slug }]` bổ sung cho `availableLocales` để `/gioi-thieu` và `/en/about` liên kết đúng. Demo bật vi/en ở site nhưng chỉ có Home vi; `/en` trả 404 và không có hreflang en giả.
 - Middleware ghi tenant context vào **request headers**, ghi đè header client, chỉ dùng `Host` đã validate. Server Component resolve lại hostname; không tin riêng `x-site-id`.
 - Cache resolve trong memory giới hạn 256 host, TTL 60 giây; lỗi upstream trả 503/no-store. Cache API của web tách theo site ID/slug/locale, revalidate sau 60 giây. Vì đọc `headers()`, HTML là SSR theo request; đây là **cache dữ liệu**, không phải full-page ISR. Full-page ISR cần route nội bộ theo site ở phase tối ưu sau.
+- Locale mặc định của từng site dùng URL không prefix; middleware rewrite nội bộ. Prefix mặc định tường minh được redirect 301 bỏ prefix, giữ query string. Locale khác giữ prefix; không tự đổi locale theo `Accept-Language` hoặc cookie. Canonical, link điều hướng và hreflang dùng cùng quy tắc; `x-default` trỏ bản mặc định khi bản dịch đó tồn tại.
 - Metadata được hoàn thành trước streaming để giữ HTTP 404 thật. `DocumentLocale` cập nhật `html lang` khi đổi ngôn ngữ bằng client navigation.
 - Seed là nội dung mẫu, sẽ cập nhật lại các bản ghi mẫu mỗi lần chạy. Không dùng seed này để quản lý nội dung production.
 - Chưa triển khai auth, admin, page builder, staging hoặc production deployment.
