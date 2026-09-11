@@ -1,0 +1,24 @@
+@import "@fontsource-variable/manrope";
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Manrope Variable', sans-serif;
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-line: var(--line);
+}
+:root { --canvas: #fafafa; --ink: #202024; --muted: #61616a; --primary: #9a365a; --line: #dcdce0; }
+[data-theme="forest"] { --primary: #2f6952; }
+@media (prefers-color-scheme: dark) {
+  :root { --canvas: #17171a; --ink: #f4f4f5; --muted: #b5b5bd; --primary: #ed9dbb; --line: #3b3b43; }
+  [data-theme="forest"] { --primary: #98ceb5; }
+}
+body { margin: 0; }
+::selection { background: var(--primary); color: var(--canvas); }
+a, button { -webkit-tap-highlight-color: transparent; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outline-offset: 5px; }
+@media (prefers-reduced-motion: no-preference) {
+  a, button { transition: color .4s ease-in-out, background-color .4s ease-in-out; }
+}
