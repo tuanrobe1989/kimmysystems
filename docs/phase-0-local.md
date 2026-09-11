@@ -310,14 +310,32 @@ export async function middleware(req: NextRequest) {
   if (!site) return NextResponse.rewrite(new URL("/site-not-found", req.url));
 
   const { pathname } = req.nextUrl;
-  const locale = pickLocale(pathname, site);   // /vi/... | /en/... | thiếu → redirect sang defaultLocale
-  const res = NextResponse.rewrite(
-    new URL(`/${locale}${stripLocale(pathname)}`, req.url)
-  );
-  res.headers.set("x-site-id", site.id);        // layout/page đọc siteId từ header này
-  return res;
+
+  // Chính sách locale (localePrefix: "as-needed"):
+  // 1. Không có prefix locale  → REWRITE nội bộ sang defaultLocale của site,
+  //    URL giữ nguyên: kimmyphungmakeup.localhost:3000 hiển thị thẳng bản vi.
+  // 2. Prefix = defaultLocale   → 301 redirect bỏ prefix (/vi/gioi-thieu → /gioi-thieu)
+  //    để mỗi trang chỉ có MỘT URL chính thức (chống duplicate content).
+  // 3. Prefix = locale khác     → giữ nguyên (/en/about).
+  const seg = firstSegment(pathname);
+  if (seg === site.defaultLocale)
+    return NextResponse.redirect(new URL(stripLocale(pathname), req.url), 301);
+
+  const locale = site.locales.includes(seg) ? seg : site.defaultLocale;
+  const internalPath = site.locales.includes(seg) ? pathname : `/${locale}${pathname}`;
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-site-id", site.id);
+  requestHeaders.set("x-site-locale", locale);
+  // Giữ origin nội bộ để Next không proxy ra hostname public.
+  const url = req.nextUrl.clone();
+  url.pathname = internalPath;
+  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
 }
 ```
+
+> **Không** auto-redirect theo `Accept-Language` — hại SEO (Googlebot bị đá sang locale khác). Muốn gợi ý đổi ngôn ngữ thì hiện banner phía client.
+> hreflang/canonical đi theo cùng quy ước: vi (default) trỏ URL không prefix, en trỏ `/en/...`, `x-default` trỏ URL không prefix.
+> Chỉ tạo hreflang cho bản dịch tồn tại; nếu trang thiếu bản dịch mặc định thì không tạo `x-default` dẫn đến 404. Quy tắc dựa trên `site.defaultLocale`, không hardcode vi cho mọi site.
 
 - Layout/page đọc `x-site-id` (qua `headers()`) thay vì hardcode — gỡ hardcode của T0.5.
 - Trang 404 riêng cho "domain chưa đăng ký".
@@ -325,13 +343,14 @@ export async function middleware(req: NextRequest) {
 ### Kiểm tra multi-site thật
 
 ```
-http://kimmyphungmakeup.localhost:3000   → redirect /vi → trang Kimmy Phùng Makeup
-http://kimmyphungmakeup.localhost:3000/en → bản tiếng Anh
-http://demo.localhost:3000               → trang site Demo (nội dung khác!)
-http://khac.localhost:3000               → site-not-found
+http://kimmyphungmakeup.localhost:3000     → bản VI hiển thị NGAY, URL giữ nguyên (không redirect)
+http://kimmyphungmakeup.localhost:3000/vi  → 301 về bản không prefix (URL trần)
+http://kimmyphungmakeup.localhost:3000/en  → bản tiếng Anh, <html lang="en">
+http://demo.localhost:3000                 → trang site Demo (nội dung khác!)
+http://khac.localhost:3000                 → site-not-found
 ```
 
-**DoD:** cả 4 URL trên đúng như mô tả. Push PR.
+**DoD:** cả 5 URL trên đúng như mô tả. Push PR.
 
 ---
 
@@ -375,7 +394,7 @@ pnpm db:migrate; pnpm db:seed
 pnpm dev
 ```
 
-- [ ] `kimmyphungmakeup.localhost:3000/vi` + `/en` render từ DB, title/description đúng per locale
+- [ ] `kimmyphungmakeup.localhost:3000` ra thẳng bản vi (URL trần, không redirect); `/en` ra bản Anh; `/vi` 301 về URL trần
 - [ ] `demo.localhost:3000` ra site khác — multi-site hoạt động
 - [ ] `localhost:4000/docs` — Swagger đủ 3 endpoint (healthz, resolve, pages)
 - [ ] `pnpm turbo lint typecheck build` xanh; CI bắt buộc trên PR

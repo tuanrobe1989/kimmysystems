@@ -89,7 +89,11 @@ kimmy-systems/
 
 ### 5.2 i18n
 
-- UI strings: `next-intl`, message files theo locale, đường dẫn `/{locale}/…` (vd `/vi/gioi-thieu`, `/en/about`).
+- UI strings: `next-intl`, message files theo locale; route nội bộ `/{locale}/…`, URL công khai áp dụng quy tắc prefix dưới đây (vd `/gioi-thieu`, `/en/about` khi vi là mặc định).
+- **Locale mặc định không cần prefix** (`localePrefix: 'as-needed'`): mỗi site có `defaultLocale` trong DB; vào domain trần (`kimmyphungmakeup.com`) là hiểu ngay locale mặc định (vi) — middleware **rewrite nội bộ**, URL giữ nguyên sạch, không redirect. Locale khác mới có prefix (`/en/...`).
+  - Chống duplicate content: truy cập tường minh `/vi/...` bị **301 về bản không prefix** — mỗi trang chỉ có một URL chính thức.
+  - hreflang/canonical/sitemap theo đúng quy ước đó: vi trỏ URL không prefix, en trỏ `/en/...`, `x-default` trỏ URL không prefix.
+  - **Không** auto-redirect theo `Accept-Language` của browser (hại SEO — Googlebot bị đá đi nơi khác); nếu muốn thì chỉ hiện banner gợi ý đổi ngôn ngữ.
 - Nội dung động: pattern **bảng dịch** —
 
 ```sql
