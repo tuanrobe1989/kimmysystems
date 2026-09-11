@@ -47,11 +47,43 @@ export class AuthService {
     return toUserDto(user);
   }
 
-  private async createSession(user: User) {
+  // Every failure below returns the same 401 body so responses never reveal
+  // whether a token exists, expired, or triggered the reuse alarm.
+  async refresh(refreshToken: string) {
+    const session = await this.prisma.session.findUnique({ where: { refreshTokenHash: hashRefreshToken(refreshToken) }, include: { user: true } });
+    if (!session) throw new UnauthorizedException('Invalid refresh token');
+    if (session.revokedAt) {
+      // A rotated-out token coming back means it leaked or was replayed: kill the whole chain.
+      await this.revokeFamily(session.familyId);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    if (session.expiresAt <= new Date()) {
+      await this.revokeFamily(session.familyId);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    const rotated = await this.prisma.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (rotated.count === 0) {
+      // Lost a race: the token was consumed concurrently, which is itself a replay.
+      await this.revokeFamily(session.familyId);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    return this.createSession(session.user, session.familyId);
+  }
+
+  // Idempotent and silent on unknown tokens, so logout cannot be used to probe for valid ones.
+  async logout(refreshToken: string) {
+    await this.prisma.session.updateMany({ where: { refreshTokenHash: hashRefreshToken(refreshToken), revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  private revokeFamily(familyId: string) {
+    return this.prisma.session.updateMany({ where: { familyId, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  private async createSession(user: User, familyId?: string) {
     const refreshToken = randomBytes(48).toString('base64url');
     const days = this.config.getOrThrow<number>('REFRESH_TOKEN_TTL_DAYS');
     await this.prisma.session.create({
-      data: { userId: user.id, refreshTokenHash: hashRefreshToken(refreshToken), expiresAt: new Date(Date.now() + days * 86_400_000) },
+      data: { userId: user.id, ...(familyId ? { familyId } : {}), refreshTokenHash: hashRefreshToken(refreshToken), expiresAt: new Date(Date.now() + days * 86_400_000) },
     });
     const payload: AccessTokenPayload = { sub: user.id, email: user.email };
     return {
