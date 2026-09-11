@@ -14,6 +14,9 @@ export const envSchema = z.object({
   S3_KEY: z.string().min(1),
   S3_SECRET: z.string().min(8),
   SMTP_URL: protocol(['smtp:', 'smtps:']),
+  JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 });
 
 export function validateEnv(input: Record<string, unknown>) {
